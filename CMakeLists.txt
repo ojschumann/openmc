@@ -32,6 +32,7 @@ option(optimize "Turn on all compiler optimization flags"              OFF)
 option(coverage "Compile with coverage analysis flags"                 OFF)
 option(dagmc    "Enable support for DAGMC (CAD) geometry"              OFF)
 option(libmesh  "Enable support for libMesh unstructured mesh tallies" OFF)
+option(sanitize "Compile with sanitizer support"                       OFF)
 
 #===============================================================================
 # MPI for distributed-memory parallelism
@@ -136,10 +137,16 @@ endif()
 
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
+set(LIBCXX_DEBUG FALSE)
 list(APPEND cxxflags -O2)
 if(debug)
   list(REMOVE_ITEM cxxflags -O2)
   list(APPEND cxxflags -g -O0)
+  set(LIBCXX_DEBUG TRUE)
+endif()
+if(sanitize)
+  list(APPEND cxxflags -fsanitize=address -fsanitize=pointer-compare  -fsanitize=pointer-subtract -fsanitize=leak -fsanitize=undefined)
+  list(APPEND ldflags -fsanitize=address -fsanitize=pointer-compare  -fsanitize=pointer-subtract -fsanitize=leak -fsanitize=undefined)
 endif()
 if(profile)
   list(APPEND cxxflags -g -fno-omit-frame-pointer)
@@ -395,6 +402,9 @@ target_include_directories(libopenmc
 
 # Set compile flags
 target_compile_options(libopenmc PRIVATE ${cxxflags})
+if (LIBCXX_DEBUG)
+  target_compile_options(libopenmc PUBLIC -D_GLIBCXX_DEBUG -DXTENSOR_ENABLE_ASSERT)
+endif()
 
 # Add include directory for configured version file
 target_include_directories(libopenmc PRIVATE ${CMAKE_BINARY_DIR}/include)
@@ -443,6 +453,9 @@ endif()
 #===============================================================================
 add_executable(openmc src/main.cpp)
 target_compile_options(openmc PRIVATE ${cxxflags})
+if (LIBCXX_DEBUG)
+  target_compile_options(libopenmc PUBLIC -D_GLIBCXX_DEBUG -DXTENSOR_ENABLE_ASSERT)
+endif()
 target_include_directories(openmc PRIVATE ${CMAKE_BINARY_DIR}/include)
 target_link_libraries(openmc libopenmc)
 
